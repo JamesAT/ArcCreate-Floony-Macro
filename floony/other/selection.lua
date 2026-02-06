@@ -142,26 +142,135 @@ MacroNewNOCMD(
     'Range Select Group', 'e8d9',
     function ()
         local tStart, tEnd = Request.timeRange()
-        local TimingGroup = Context.currentTimingGroup
-        
+        local TG = Context.currentTimingGroup
+
         local notes = Event.query(
             CustomConstraints.timeRange(tStart, tEnd)
-            .ofTimingGroup(TimingGroup)
+        )
+        notes = table.icollapse(notes, 'arc', 'tap', 'hold', 'arctap')
+
+        local newSel = {}
+        for _, ev in ipairs(notes) do
+            local evTG = ev.timingGroup
+            if evTG == TG then
+                table.insert(newSel, ev)
+            end
+        end
+
+        if #newSel == 0 then
+            notifyWarn("No notes selected in Timing Group " .. TG)
+        else
+            Event.setSelection(newSel)
+        end
+    end
+)
+
+    -- / Range Select Random / --
+MacroNewNOCMD(
+    'floony.selection', 'selectrandom',
+    'Range Select Random', 'e043',
+    function ()
+        local tStart, tEnd = Request.timeRange()
+        local TG = Context.currentTimingGroup
+
+        local notes = Event.query(
+            CustomConstraints.timeRange(tStart, tEnd)
         )
         notes = table.icollapse(notes, 'arc', 'tap', 'hold', 'arctap')
         
-        local newSelection = {}
+        if #notes == 0 then
+            notifyWarn("No notes found in the selected time range.")
+            return
+        end
 
-        for _, event in ipairs(notes) do
-            if event.timingGroup == TimingGroup then
-                table.insert(newSelection, event)
+        -- Filter: Only keep notes that belong to the current Timing Group
+        local candidates = {}
+        for _, ev in ipairs(notes) do
+            local evTG = ev.timingGroup or 0
+            if evTG == TG then
+                table.insert(candidates, ev)
             end
         end
+
+        if #candidates == 0 then
+            notifyWarn("No notes found in Timing Group " .. TG .. " within this range.")
+            return
+        end
+
+        -- Probability to keep each event (0.0 .. 1.0).
+        local keepProb = 0.5
+
+        local seedBase = math.floor((tStart + tEnd) * 1000)
+        local seed = (seedBase + #candidates * 997 * 7919) % 2147483647
+        math.randomseed(seed)
+        for i = 1, 5 do math.random() end
+
+        local newSel = {}
+        for _, ev in ipairs(candidates) do
+            if math.random() < keepProb then
+                table.insert(newSel, ev)
+            end
+        end
+
+        if #newSel == 0 and #candidates > 0 then
+            table.insert(newSel, candidates[math.random(1, #candidates)])
+        end
+
+        Event.setSelection(newSel)
+    end
+)
+
+
+    -- / Range Select Area / --
+MacroNewNOCMD(
+    'floony.selection', 'selectarea_arcs',
+    'Range Select Area', 'ef52',
+    function ()
+        local tStart = Request.time("Select start time")
+        local TG = Context.currentTimingGroup
+
+        local posMin = Request.position(tStart, "Select X/Y Min Position")
+        local posMax = Request.position(tStart, "Select X/Y Max Position")
+
+        local xMin, xMax = posMin.x, posMax.x
+        local yMin, yMax = posMin.y, posMax.y
         
-        if #newSelection == 0 then
-            notifyWarn("No notes selected in the current Timing Group.")
+        coroutine.yield()
+
+        local tEnd = Request.time("Select end time")
+        
+        coroutine.yield()
+        
+        local notes = Event.query(
+            CustomConstraints.timeRange(tStart, tEnd)
+        )
+        notes = table.icollapse(notes, 'arc')
+
+        local newSel = {}
+        
+        local lowX, highX = math.min(xMin, xMax), math.max(xMin, xMax)
+        local lowY, highY = math.min(yMin, yMax), math.max(yMin, yMax)
+
+        for _, ev in ipairs(notes) do
+            if ev.startX ~= nil then 
+                local evTG = ev.timingGroup or 0
+                
+                if evTG == TG then
+                    local ex = ev.startX
+                    local ey = ev.startY
+
+                    if ex >= lowX and ex <= highX and ey >= lowY and ey <= highY then
+                        table.insert(newSel, ev)
+                    end
+                end
+            end
+        end
+
+        if #newSel == 0 then
+            notifyWarn("No arcs found in TG " .. TG .. " within those coordinates.")
         else
-            Event.setSelection(newSelection)
+            Event.setSelection(newSel)
+            -- notify("Selected " .. #newSel .. " arcs.")
         end
     end
 )

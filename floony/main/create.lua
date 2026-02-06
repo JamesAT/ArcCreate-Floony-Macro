@@ -431,66 +431,114 @@ MacroNew(
     'Events Repeat', 'e040',
     function(cmd)
         local tStart, tEnd = Request.timeRange()
+        local tg = Context.currentTimingGroup
+        local duration = tEnd - tStart
+
+        local selection = Event.query(CustomConstraints.timeRange(tStart, tEnd).ofTimingGroup(tg))
+        selection = table.icollapse(selection, 'arc', 'tap', 'hold', 'arctap')
+        Event.setSelection(selection)
+
         local dialogRequest = DialogInput.withTitle("Repeat").requestInput({
             DialogField.create('repeat')
                 .setLabel('Count')
-                .setTooltip('How many times should the selected events be repeated?')
+                .setTooltip('How many times to repeat the events? (1 = for custom start timing)')
+                .defaultTo("1")
                 .textField(FieldConstraint.create().integer()),
             DialogField.create('onlyTiming')
                 .setLabel('Only Timing')
-                .setTooltip('Include only timing events when repeated?')
+                .setTooltip('Repeat only timing events.')
+                .checkbox(),
+            DialogField.create('allTG')
+                .setLabel('All TG')
+                .setTooltip('Include all timing groups in the selected range.')
                 .checkbox()
         })
 
         coroutine.yield()
-        local rep = dialogRequest.result['repeat']
+
+        local rep = tonumber(dialogRequest.result['repeat']) or 1
         local onlyTiming = dialogRequest.result['onlyTiming']
+        local allTG = dialogRequest.result['allTG']
 
-        if not onlyTiming then
-            local notes = Event.query(CustomConstraints.timeRange(tStart, tEnd))
-            notes = table.icollapse(notes, 'arc', 'hold', 'tap', 'timing', 'arctap', 'scenecontrol')
+        local repeatStart = tStart
+        if rep == 1 then
+            repeatStart = Request.time("Select timing where you want to repeat it")
+        end
 
-            local arcMap = {}
+        local baseConstraint = CustomConstraints.timeRange(tStart, tEnd)
+        if not allTG then baseConstraint = baseConstraint.ofTimingGroup(tg) end
 
+        local function getOffset(i, evTiming)
+            if rep == 1 then
+                return repeatStart + (evTiming - tStart) - evTiming
+            else
+                return (i) * duration
+            end
+        end
+
+        if onlyTiming then
             for i = 1, rep do
-                for _, event in ipairs(notes) do
-                    if event.is 'arc' then
-                        arcMap[event] = Event.arc(
-                            event.timing + i * (tEnd - tStart),
-                            event.startX, event.startY,
-                            event.endTiming + i * (tEnd - tStart),
-                            event.endX, event.endY,
-                            event.isTrace, event.color, event.type,
-                            event.timingGroup, event.sfx
-                        )
-                        cmd.add(arcMap[event].save())
-                    elseif event.is 'arctap' and arcMap[event.arc] then
-                        cmd.add(Event.arcTap(event.timing + i * (tEnd - tStart), arcMap[event.arc]).save())
-                    else
-                        local ev = event.copy()
-                        ev.timing = ev.timing + i * (tEnd - tStart)
-                        if ev.is 'long' then
-                            ev.endTiming = ev.endTiming + i * (tEnd - tStart)
-                        end
-                        cmd.add(ev.save())
+                for _, ev in ipairs(Event.query(baseConstraint).timing) do
+                    if allTG or ev.timingGroup == tg then
+                        local offset = getOffset(i, ev.timing)
+                        local copy = ev.copy()
+                        copy.timing = ev.timing + offset
+                        cmd.add(copy.save())
                     end
                 end
             end
-        else
-            local timingEvents = Event.query(CustomConstraints.timeRange(tStart, tEnd)).timing
+            return
+        end
 
-            for i = 1, rep do
-                for _, event in ipairs(timingEvents) do
-                    local ev = event.copy()
-                    ev.timing = ev.timing + i * (tEnd - tStart)
-                    cmd.add(ev.save())
+        local events = Event.query(baseConstraint)
+        events = table.icollapse(events, 'arc', 'tap', 'hold', 'timing', 'arctap', 'scenecontrol')
+
+        local filtered, arcMap = {}, {}
+
+        for _, ev in ipairs(events) do
+            if allTG or ev.timingGroup == tg then
+                table.insert(filtered, ev)
+            end
+        end
+
+        for i = 1, rep do
+            local offsetCache = {}
+
+            for _, ev in ipairs(filtered) do
+                local offset = offsetCache[ev.timing]
+                if not offset then
+                    offset = getOffset(i, ev.timing)
+                    offsetCache[ev.timing] = offset
+                end
+
+                if ev.is 'arc' then
+                    local arc = Event.arc(
+                        ev.timing + offset, ev.startX, ev.startY,
+                        ev.endTiming + offset, ev.endX, ev.endY,
+                        ev.isTrace, ev.color, ev.type,
+                        ev.timingGroup, ev.sfx
+                    )
+                    arcMap[ev] = arc
+                    cmd.add(arc.save())
+
+                elseif ev.is 'arctap' then
+                    local refArc = ev.arc
+                    if arcMap[refArc] or (allTG and refArc) then
+                        cmd.add(Event.arcTap(ev.timing + offset, arcMap[refArc] or refArc).save())
+                    end
+
+                else
+                    local copy = ev.copy()
+                    copy.timing = ev.timing + offset
+                    if copy.is 'long' then
+                        copy.endTiming = copy.endTiming + offset
+                    end
+                    cmd.add(copy.save())
                 end
             end
         end
     end
 )
-
-
 
 -- // SCRAPPED MACRO // --
 --[[ // okay I'm not going to work on this

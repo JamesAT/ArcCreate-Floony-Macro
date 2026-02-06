@@ -172,12 +172,23 @@ local function allocate(events, count, length, counter)
         counter(e, function(timing)
             local slot = math.floor(timing / slot_length)
             if slot > 0 and slot <= #tbl then
-                tbl[slot] = tbl[slot] + timing
+                tbl[slot] = tbl[slot] + 1
                 if tbl[slot] > max then max = tbl[slot] end
             end
         end)
     end
 
+    if max == 0 then
+        return nil
+    end
+    
+    --[[
+    for i = 1, #tbl do
+        tbl[i] = tbl[i] / i
+        if tbl[i] > max then max = tbl[i] end
+    end
+    ]]--
+    
     for i = 1, #tbl do
         tbl[i] = tbl[i] / max
     end
@@ -270,6 +281,11 @@ MacroNew(
             adder(e.timing)
         end)
 
+        if not by_percentage then
+            dialogNotify("<color=#F25F5C><b>Warning:</b></color>\nYou need to have at least 1% progression, please check again soon.")
+            return false
+        end
+        
         local dialog = DialogInput.withTitle("Chart Progress / Density Heat Map")
             .requestInput({
                 DialogField.create("Density").description("<b>- Event Density:</b>"),
@@ -381,6 +397,69 @@ MacroNew(
         dialogNotify(message)
     end
 )
+
+-- // GENERATE FORUM CHART FORMAT // --
+MacroNewNOCMD(
+    "floony", "genforum", 
+    "Generate Post Format", "e0bf",
+    function()
+        local dialogFields = {
+            DialogField.create("illustrator")
+                .setLabel("Illustrator")
+                .setTooltip("Enter the illustrator name (leave blank for N/A)")
+                .textField(FieldConstraint.create().any()),
+                
+            DialogField.create("chartConstantFuture")
+                .setLabel("Chart Constant (Future)")
+                .setTooltip("Enter the chart constant for Future difficulty (leave blank for N/A)")
+                .textField(FieldConstraint.create().any()),
+                
+            DialogField.create("chartViewFuture")
+                .setLabel("Chart View (Future)")
+                .setTooltip("Enter the URL for Future difficulty (leave blank for N/A)")
+                .textField(FieldConstraint.create().any()),
+                
+            DialogField.create("chartDescription")
+                .setLabel("Chart Description")
+                .setTooltip("Enter a chart description (leave blank for N/A)")
+                .textField(FieldConstraint.create().any())
+        }
+        
+        local dialogResult = DialogInput.withTitle("Chart Post Format Addition")
+            .requestInput(dialogFields)
+            
+        if not dialogResult then
+            notify("Operation canceled.")
+            return
+        end
+        coroutine.yield()
+        local illustrator = (dialogResult.illustrator and dialogResult.illustrator ~= "") and dialogResult.illustrator or "N/A"
+        local chartConstantFuture = (dialogResult.chartConstantFuture and dialogResult.chartConstantFuture ~= "") and dialogResult.chartConstantFuture or "N/A"
+        local chartViewFuture = (dialogResult.chartViewFuture and dialogResult.chartViewFuture ~= "") and dialogResult.chartViewFuture or "N/A"
+        local chartDescription = (dialogResult.chartDescription and dialogResult.chartDescription ~= "") and dialogResult.chartDescription or "N/A"
+        
+        local songTitle = Context.title or "N/A"
+        local composer = Context.composer or "N/A"
+        local charter = Context.charter or "N/A"
+        local alias = Context.alias or "N/A"
+        
+        local info = "Song: " .. songTitle .. "\n" ..
+                     "Composer: " .. composer .. "\n" ..
+                     "Illustrator: " .. illustrator .. "\n\n" ..
+                     "Difficulty: Future ?\n" ..
+                     "Charter: " .. charter .. "\n" ..
+                     "Alias: " .. alias .. "\n" ..
+                     "Chart Constant: " .. chartConstantFuture .. "\n" ..
+                     "Chart View: " .. chartViewFuture .. "\n\n" ..
+                     "Chart Description:\n" .. chartDescription
+        
+        -- Copy the generated info to the system clipboard
+        Context.systemClipboard = info
+        
+        notify("Chart Post Format generated and copied to the clipboard!")
+    end
+)
+
 
 --[[ In WIP hell
 MacroNewNOCMD(

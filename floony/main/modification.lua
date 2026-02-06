@@ -134,10 +134,10 @@ for _, shift in ipairs(shiftValues) do
     local folderName = 'floony.shiftarcpos.' .. shift.name:lower()
     addFolderWithIcon('floony.shiftarcpos', folderName, shift.icon or 'e5da', shift.name)
     
-    MacroNewNOCMD(folderName, folderName .. '.xneg', 'X -' .. shift.x, nil, function() ShiftPos(-shift.x, 0, cmd) end)
-    MacroNewNOCMD(folderName, folderName .. '.xpos', 'X +' .. shift.x, nil, function() ShiftPos(shift.x, 0, cmd) end)
-    MacroNewNOCMD(folderName, folderName .. '.ypos', 'Y +' .. shift.y, nil, function() ShiftPos(0, shift.y, cmd) end)
-    MacroNewNOCMD(folderName, folderName .. '.yneg', 'Y -' .. shift.y, nil, function() ShiftPos(0, -shift.y, cmd) end)
+    MacroNewNOCMD(folderName, folderName .. '.xneg', 'X -' .. shift.x, 'e5cb', function() ShiftPos(-shift.x, 0, cmd) end)
+    MacroNewNOCMD(folderName, folderName .. '.xpos', 'X +' .. shift.x, 'e5cc', function() ShiftPos(shift.x, 0, cmd) end)
+    MacroNewNOCMD(folderName, folderName .. '.ypos', 'Y +' .. shift.y, 'e5ce', function() ShiftPos(0, shift.y, cmd) end)
+    MacroNewNOCMD(folderName, folderName .. '.yneg', 'Y -' .. shift.y, 'e5cf', function() ShiftPos(0, -shift.y, cmd) end)
 end
 
     -- / Macro (Custom Position)
@@ -294,7 +294,78 @@ MacroNew(
         end
     end
 )
-        
+
+MacroNew(
+    "floony.modification", "SplitnSnap",
+    "Split & Snap Start Arcs", "e918",
+    function(cmd)
+        -- Collect segments (timing, positions, etc) for a single arc
+        local function collect_segments(arc)
+            local segments = {}
+            local t_start = arc.timing
+            local t_end = arc.endTiming
+            local step = Context.beatLengthAt(t_start) / Context.beatlineDensity
+
+            local t = t_start
+            while t < t_end do
+                local t_next = math.min(t + step, t_end)
+                if math.abs(t_next - t) <= 1 then break end
+
+                table.insert(segments, {
+                    startPos = arc.positionAt(t),
+                    endPos = arc.positionAt(t_next),
+                    isVoid = arc.isVoid,
+                    color = arc.color,
+                    timingGroup = arc.timingGroup
+                })
+
+                t = t_next
+            end
+
+            return segments
+        end
+
+        -- Grab selected arcs
+        local rawSel = Event.getCurrentSelection(EventSelectionConstraint.create().arc())
+        local selectedArcs = table.icollapse(rawSel, "arc")
+
+        if #selectedArcs == 0 then
+            notify("Please select at least one arc or trace to Segment and Snap.")
+            return false
+        end
+
+        -- Find the first arc’s startTiming for snapping all arcs
+        local firstTiming = selectedArcs[1].timing
+
+        -- Gather all new arcs and queue deletion of originals
+        local allSegments = {}
+        for _, arc in ipairs(selectedArcs) do
+            for _, seg in ipairs(collect_segments(arc)) do
+                seg.targetTiming = firstTiming
+                table.insert(allSegments, seg)
+            end
+
+            cmd.add(arc.delete())
+        end
+
+        -- Create zero-length “snapped” arcs at the first arc’s startTiming
+        for _, seg in ipairs(allSegments) do
+            local snapped = Event.arc(
+                seg.targetTiming,
+                seg.startPos,
+                seg.targetTiming,
+                seg.endPos,
+                seg.isVoid,
+                seg.color,
+                's',
+                seg.timingGroup
+            )
+            cmd.add(snapped.save())
+        end
+    end
+)
+
+--[[
 -- // CURVED ARCS START-TIMING SNAPPING // --
 MacroNew(
     "floony.modification", "snaptrace", 
@@ -330,6 +401,7 @@ MacroNew(
         cmd.add(baseArc.save())
     end
 )
+]]--
 
 -- // CYCLE ARC COLOR // --
 MacroNew(

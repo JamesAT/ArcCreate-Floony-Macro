@@ -40,9 +40,70 @@ local function addChangelog(version, release, description)
 end
 
 -- Tricks for description bugs (Text cut off), use spaces to stretch out the description, lmao.
+addChangelog(
+    "6.9.8", "???, 2025", 
+    [[
+#> Adjustment / Improvement# <size=90%>
+- `Random Selection` is now select based on TG selected.
+- nothing much, just changed the internal coding stuff.
+- Modified `Arc Rain` to use a 2-point selection. I realized that picking two diagonal points covers the same X/Y range as picking four separate bounds, so I've simplified the workflow.
+#> Addition# <size=90%>
+- Added `Range Select Area` under Selection category, although it only select arcs (for now)
+- Added `Notes Trail` under Special Category (wow there are so many special macro huh), to replicate that motion blur effect on notes (refer to 0thElement Hecatoncheir)
+</size>
+
+
+
+]]
+)
+
 
 addChangelog(
-    "6.9.5", "January, 2025", 
+    "6.9.7", "November 22, 2025", 
+    [[
+#> Adjustment / Improvement# <size=90%>
+- Added arrow icon on the `Shift ArcPos` to increase clarity
+- The `Snap to Start Timing` has been revised and renamed to `Split & Snap Start Arcs`, where it now splits the arcs based on density and then snaps to the first selected arcs.
+- In the `Arcs Segmentation` category, you can now select and split multiple arcs at once.
+- Added `Timing Duration` under Special category. This is useful in SceneControl to quickly determine the duration without manually calculating it.
+- Reword vague parameters (mostly labelling / dialogField) to clearly describe their function.
+ </size>
+#> Addition# <size=90%>
+- Added `Random Selection` under Selection category, perfect if you want to assign different tg timing to create that parallax-ish effect.
+</size>
+#> WIP# <size=90%>
+- Added a manual category with explanations and usage instructions for every macro (only for few macro, others coming up soon...?). NOTE TO MYSELF: Rephrase the whole things, so it won't look like I just type a prompt onto chatGPT and just copy and paste it without any modification.
+</size>
+
+
+
+
+]]
+)
+
+addChangelog(
+    "6.9.6a", "May 14, 2025", 
+    [[
+#> Addition# <size=90%>
+- Added `Camera to Arc` as opposition of `Arc to Camera` the function is self-explanitory, it uses for well... snapping thingy (for my use case), free camera can't help you snap stuff, especially on the middle.
+- Added an `Accumulate Segment` to `Progress Length` for those with multiple charted segments who want to see the cumulative total. (yes, this was made for the event, but I'm kinda lazy to implement it-) [] IN WIP (doesn't exists yet)
+</size>
+#> Adjustment / Improvement# <size=90%>
+- Removed `Persistent` on Gradual Timing, I don't think it has any uses in that, in fact, it annoys the frick out of me using it when going on between session.
+- `Repeat Events` uses the current timing group by default now. Enable `All Groups` to include all timing groups in that area. Also have custom start timing I suppose.
+- Fixed a bug in `Density / Progress` where 0% completion caused issues (I just make it a warning lol)
+</size>
+
+
+
+
+
+
+]]
+)
+
+addChangelog(
+    "6.9.5", "January 20, 2025", 
     [[
 #> Addition# <size=90%>
 - Added `Spiral Trace` on Special Category, based on rech "Arghena intro spiral trace generator", but with more customizable setting like postion, start/end timing, etc
@@ -50,6 +111,9 @@ addChangelog(
 </size>
 #> Adjustment / Improvement# <size=90%>
 - Improve `Repeat` macaro but first... it changed its name to `Events Repeat` idk, it functions like copy-paste but can grab **Scenecontrol and Timing**, also; I added **Arctap** support. So it's not that useless anymore, yippee.
+</size>
+#> Bug Fix# <size=90%>
+- I think when working on 6.9.48, I accidentally reversed the version of `Effects / Gimmick`... oops, well this fixes that. Man-
 </size>
 
 

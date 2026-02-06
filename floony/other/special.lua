@@ -668,6 +668,137 @@ MacroNew(
     end
 )
 
+-- // DURATION GRABBER // --
+MacroNewNOCMD(
+    'floony.special', 'durationhold',
+    'Timing Duration', 'e51d',
+    function()
+        local tStart, tEnd = Request.timeRange()
+        coroutine.yield()
+        local duration = tEnd - tStart
+        Context.systemClipboard = tostring(duration)
+        notify("Copied duration: " .. tostring(duration))
+    end
+)
+
+-- // NOTE TRAILS // --
+-- / Function to find existing timing groups by name
+local function detectTimingGroupName(name)
+    for i = 1, Context.timingGroupCount - 1 do
+        local group = Event.getTimingGroup(i)
+        if group.name == name then
+            return group
+        end
+    end
+    return nil
+end
+
+-- / Macro: Note Trails
+MacroNewNOCMD(
+    "floony.special", "floony.notetrails", 
+    "Note Trails", "e3a3",
+    function()
+        local selectedNotes = Event.getCurrentSelection(EventSelectionConstraint.create().any())
+        local notes = table.icollapse(selectedNotes, 'arc', 'tap', 'hold', 'arctap')
+        
+        if #notes == 0 then
+            notify("Please select notes first.")
+            return false
+        end
+        
+        local dialogRequest = DialogInput.withTitle("Note Trails (" .. #notes .. " notes)")
+            .requestInput({
+                DialogField.create("trailCount")
+                    .setLabel("Number of Trails")
+                    .setTooltip("Total number of copies (2-10)")
+                    .defaultTo(5)
+                    .textField(FieldConstraint.create().integer()),
+                DialogField.create("trailDistance")
+                    .setLabel("Distance (ms)")
+                    .setTooltip("Time gap between each trail copy")
+                    .defaultTo(25)
+                    .textField(FieldConstraint.create().integer())
+            })
+            
+        coroutine.yield()
+        
+        if not dialogRequest.result then return false end
+        
+        local trailCount = tonumber(dialogRequest.result["trailCount"]) or 5
+        local trailDistance = tonumber(dialogRequest.result["trailDistance"]) or 25
+        
+        -- Cramping
+        if trailCount < 2 then trailCount = 2 end
+        if trailCount > 20 then trailCount = 20 end
+        
+        local batchCommand = Command.create("Macro Note Trails (floony.special)")
+        local arcMap = {}
+        
+        for trailIndex = 1, trailCount - 1 do
+            local timeOffset = trailDistance * trailIndex
+            local alpha255 = (1.0 - (trailIndex / trailCount)) * 255.0
+            
+            -- Timing Group
+            local tgName = "$floony.trail." .. trailIndex
+            local trailGroup = detectTimingGroupName(tgName)
+            
+            if not trailGroup then
+                trailGroup = Event.createTimingGroup('name="' .. tgName .. '", noinput')
+                batchCommand.add(trailGroup.save())
+            end
+            
+            -- Add Scenecontrol
+            local groupAlphaEvent = Event.scenecontrol(
+                0.0,
+                "groupalpha,0",
+                0.0,
+                alpha255 + 0.0
+            )
+            batchCommand.add(groupAlphaEvent.save().withTimingGroup(trailGroup))
+            
+            arcMap[trailIndex] = {}
+            
+            -- Copy Notes
+            for _, note in ipairs(notes) do
+                if note.is('arc') or note.is('trace') then
+                    local copy = note.copy()
+                    copy.timing = note.timing + timeOffset
+                    copy.endTiming = note.endTiming + timeOffset
+                    copy.isVoid = note.isVoid 
+                    
+                    batchCommand.add(copy.save().withTimingGroup(trailGroup))
+                    arcMap[trailIndex][note] = copy
+            elseif note.is('tap') or note.is('hold') then
+                    local copy = note.copy()
+                    copy.timing = note.timing + timeOffset
+                    if note.is('hold') then
+                        copy.endTiming = note.endTiming + timeOffset
+                    end
+                    batchCommand.add(copy.save().withTimingGroup(trailGroup))
+                end
+            end
+            
+            -- Handle Arctaps
+            for _, note in ipairs(notes) do
+                if note.is('arctap') then
+                    local originalArc = note.arc
+                    local copiedArc = arcMap[trailIndex][originalArc]
+                    if copiedArc then
+                        local newArctap = Event.arctap(
+                            note.timing + timeOffset,
+                            copiedArc
+                        )
+                        batchCommand.add(newArctap.save().withTimingGroup(trailGroup))
+                    end
+                end
+            end
+        end
+        
+        batchCommand.commit()
+        notify("Created " .. (trailCount - 1) .. " trail.")
+    end
+)
+
 -- // FLICKER SCENECONTROL // --
 local scType = ""
 local startArgsNum = 0
@@ -1078,6 +1209,96 @@ MacroNew(
         cmd.add(arcs.delete())
     end
 end
+)
+
+-- // THE EVIL ARC(S) TO CAMERA // --
+MacroNew(
+    'floony.camera', 'cam2arc',
+    'Camera to Arc', 'e41f',
+    function(cmd)
+        -- Select camera events within current timing range and timing group.
+        local tStart, tEnd = Request.timeRange()
+        local TimingGroup = Context.currentTimingGroup
+        local cameraEvents = Event.query(EventSelectionConstraint.camera()
+                                    .fromTiming(tStart)
+                                    .toTiming(tEnd)
+                                    .ofTimingGroup(TimingGroup)).camera
+        local cameraCount = #cameraEvents
+        if cameraCount == 0 then
+            notify("No camera events detected.")
+            return false
+        end
+
+        -- options.
+        local dialogRequest = DialogInput.withTitle("Camera to Arc Options").requestInput({
+            DialogField.create('cameraCount')
+                .description(tostring(cameraCount) .. ' camera events detected!'),
+            DialogField.create('keepCamera')
+                .setLabel('Keep Camera')
+                .setTooltip('Keep camera events after conversion')
+                .checkbox()
+        })
+        coroutine.yield()
+        local keepCamera = dialogRequest.result['keepCamera']
+
+        table.sort(cameraEvents, function(a, b) return a.timing < b.timing end)
+        local prevPos = {
+            [0] = { x = 0.5, y = 0 },  -- Blue
+            [1] = { x = 0.5, y = 0 },  -- Red
+            [2] = { x = 0.5, y = 0 }   -- Green
+        }
+        local defaultPos = { x = 0.5, y = 0 }
+
+        for _, cam in ipairs(cameraEvents) do
+            local dur = cam.duration
+            local endT = cam.timing + dur
+            local atype = (cam.type == "qo") and "si" or (cam.type == "qi") and "so" or (cam.type == "s") and "b" or "l"
+            local producedArc = false
+
+            if cam.type == 'reset' then
+                cmd.add(Event.arc(cam.timing, defaultPos.x, defaultPos.y, endT, defaultPos.x, defaultPos.y, false, 0, atype, TimingGroup, 0).save())
+                producedArc = true
+            else
+                -- Blue: uses cam.x and cam.y.
+                if cam.x ~= 0 or cam.y ~= 0 then
+                    local sx, sy = prevPos[0].x, prevPos[0].y
+                    local dx, dy = cam.x / 850, cam.y / 450
+                    local ex, ey = sx + dx, sy + dy
+                    cmd.add(Event.arc(cam.timing, sx, sy, endT, ex, ey, false, 0, atype, TimingGroup, 0).save())
+                    prevPos[0].x, prevPos[0].y = ex, ey
+                    producedArc = true
+                end
+                -- Red: uses cam.z and cam.rz.
+                if cam.z ~= 0 or cam.rz ~= 0 then
+                    local sx, sy = prevPos[1].x, prevPos[1].y
+                    local dx, dy = cam.rz / 45, cam.z / 200
+                    local ex, ey = sx + dx, sy + dy
+                    cmd.add(Event.arc(cam.timing, sx, sy, endT, ex, ey, false, 1, atype, TimingGroup, 0).save())
+                    prevPos[1].x, prevPos[1].y = ex, ey
+                    producedArc = true
+                end
+                -- Green: uses cam.rx and cam.ry.
+                if cam.rx ~= 0 or cam.ry ~= 0 then
+                    local sx, sy = prevPos[2].x, prevPos[2].y
+                    local dx, dy = cam.rx / 45, cam.ry / 30
+                    local ex, ey = sx + dx, sy + dy
+                    cmd.add(Event.arc(cam.timing, sx, sy, endT, ex, ey, false, 2, atype, TimingGroup, 0).save())
+                    prevPos[2].x, prevPos[2].y = ex, ey
+                    producedArc = true
+                end
+            end
+
+            if not producedArc then
+                local sx, sy = defaultPos.x, defaultPos.y
+                cmd.add(Event.arc(cam.timing, sx, sy, endT, sx, sy, false, 0, atype, TimingGroup, 0).save())
+                defaultPos.x, defaultPos.y = sx, sy
+            end
+
+            if keepCamera == false then
+                cmd.add(cam.delete())
+            end
+        end
+    end
 )
 
 -- // CAMERA STASH // --

@@ -1,16 +1,24 @@
 require "floony.lib.macroUtil"
 require "floony.lib.utils"
 
---- EFFECTS ---
+------------------------------------\
+-- // EFFECTS / GIMMICK // --       |
+------------------------------------/
 FolderNew("floony", "floony.effect", "e65f", "- Effects / Gimmick -")
 
--- ARC RAIN
+-----------------------------
+--- /// ARC RAIN FOLDER /// ---
+-----------------------------
 FolderNew("floony.effect", "floony.arcrain", "e3ea", "[Arc Rain]")
 
-local xMinPos, xMaxPos, yMinPos, yMaxPos = nil, nil, nil, nil
+-- // NORMAL // --
+    -- / Defaults
+local pos1, pos2 = nil, nil
 local defaultLength = 1
+local defaultRange = 0
 local defaultIntensity = 1
 
+    -- / Macro
 MacroNew(
     "floony.arcrain", "rain_normal", 
     "Normal", "e5da",
@@ -18,19 +26,17 @@ MacroNew(
         local tStart = Request.time("Select start time")
 
         local function requestPositions()
-            xMinPos = Request.position(tStart, "Select X Min Position")
-            xMaxPos = Request.position(tStart, "Select X Max Position")
-            yMinPos = Request.position(tStart, "Select Y Min Position")
-            yMaxPos = Request.position(tStart, "Select Y Max Position")
+            pos1 = Request.position(tStart, "Select First Corner (Min X/Y)")
+            pos2 = Request.position(tStart, "Select Opposite Corner (Max X/Y)")
 
-            if not (xMinPos and xMaxPos and yMinPos and yMaxPos) then
+            if not (pos1 and pos2) then
                 dialogNotify("Invalid input. Please select valid positions.")
                 return false
             end
             return true
         end
 
-        if not (xMinPos and xMaxPos and yMinPos and yMaxPos) then
+        if not (pos1 and pos2) then
             if not requestPositions() then return end
         else
             local confirmUsePrevious = DialogInput.withTitle("WARNING").requestInput({
@@ -46,6 +52,11 @@ MacroNew(
             end
         end
         
+        local xMin = math.min(pos1.x, pos2.x)
+        local xMax = math.max(pos1.x, pos2.x)
+        local yMin = math.min(pos1.y, pos2.y)
+        local yMax = math.max(pos1.y, pos2.y)
+
         local tEnd = Request.time("Select end time")
         coroutine.yield()
         if tEnd < tStart then 
@@ -60,20 +71,27 @@ MacroNew(
                 .defaultTo(defaultIntensity)
                 .textField(FieldConstraint.create().integer().gEqual(1)),        
             DialogField.create("lmul")
-                .setLabel("Length")
-                .setTooltip("How much of the time until the next rain arc should a given rain arc last for?")
+                .setLabel("(Min) Length")
+                .setTooltip("Duration of each rain arc (in beats)")
                 .defaultTo(defaultLength)
-                .textField(FieldConstraint.create().float()),
+                .textField(FieldConstraint.create().float().gEqual(0)),
+            DialogField.create("rangelength")
+                .setLabel("Range Length")
+                .defaultTo(defaultRange)
+                .setTooltip("Adds randomness to the arc duration.\nThe final length will be between the minimum length and (minimum + this value).")
+                .textField(FieldConstraint.create().float().gEqual(0)),
             DialogField.create("arctap")
                 .setLabel("Add Arctaps")
                 .setTooltip("Whether to add arctaps at the beginning of the trace")
                 .checkbox()
         }
-
+        
         local dialogRequest = DialogInput.withTitle("Arc Rain").requestInput(dialogFields)
         coroutine.yield()
-
-        local lmulVal, intensityVal = tonumber(dialogRequest.result["lmul"]), tonumber(dialogRequest.result["intensity"])
+        
+        local lmulVal = tonumber(dialogRequest.result["lmul"])
+        local rangeVal = tonumber(dialogRequest.result["rangelength"]) or 0
+        local intensityVal = tonumber(dialogRequest.result["intensity"])
         
         if not (lmulVal and intensityVal) then
             dialogNotify("Invalid input. Please provide valid values.")
@@ -82,18 +100,30 @@ MacroNew(
         
         defaultLength, defaultIntensity = dialogRequest.result["lmul"], dialogRequest.result["intensity"]
         
-        local minPos, maxPos = xy(xMinPos.x, yMinPos.y), xy(xMaxPos.x, yMaxPos.y)
-        local rainTime = Context.beatLengthAt(tStart, Context.currentTimingGroup) / Context.beatlineDensity
-        local rainLength = rainTime * lmulVal
-
-        for timing = tStart, tEnd - rainTime, rainTime do
+        local beatDuration = Context.beatLengthAt(tStart, Context.currentTimingGroup)
+        local rainInterval = beatDuration / Context.beatlineDensity
+        
+        for timing = tStart, tEnd - rainInterval, rainInterval do
             for i = 1, intensityVal do
-                local position = xy(math.randomf(minPos.x, maxPos.x), math.randomf(minPos.y, maxPos.y))
-                local arcEvent = Event.arc(timing, position, timing + rainLength, position, true, 0, "s", Context.currentTimingGroup)
+                local lengthBeats = lmulVal
+                if rangeVal > 0 then
+                    lengthBeats = math.randomf(lmulVal, lmulVal + rangeVal)
+                end
+                
+                local arcStart = math.floor(timing)
+                local arcEnd = math.floor(arcStart + (lengthBeats * beatDuration))
+                
+                local position = xy(math.randomf(xMin, xMax), math.randomf(yMin, yMax))
+                local arcEvent = Event.arc(arcStart, position, arcEnd, position, true, 0, "s", Context.currentTimingGroup)
                 cmd.add(arcEvent.save())
-
+        
                 if dialogRequest.result["arctap"] then
-                    local arctapEvent = Event.arctap(timing + 1, arcEvent)
+                    local tapTime = arcStart
+                    if arcEnd > arcStart then
+                        tapTime = math.min(arcStart + 1, arcEnd)
+                    end
+                    
+                    local arctapEvent = Event.arctap(tapTime, arcEvent)
                     cmd.add(arctapEvent.save())
                 end
             end
@@ -101,13 +131,15 @@ MacroNew(
     end
 )
 
-
-local xMinPos, xMaxPos, yMinPos, yMaxPos = nil, nil, nil, nil
+-- // RAIN TUNNEL (similar to callima karma) // --
+    -- / Defaults
+local pos1, pos2 = nil, nil
 local defaultLength = 0
 local defaultIntensity = 1
 local defaultY = 1
-local defaultX = 1
+local defaultX = 0.2
 
+    -- / Macro
 MacroNew(
     "floony.arcrain", "rain_tunnel", 
     "Tunnel", "e5da",
@@ -115,19 +147,17 @@ MacroNew(
         local tStart = Request.time("Select start time")
 
         local function requestPositions()
-            xMinPos = Request.position(tStart, "Select X Min Position")
-            xMaxPos = Request.position(tStart, "Select X Max Position")
-            yMinPos = Request.position(tStart, "Select Y Min Position")
-            yMaxPos = Request.position(tStart, "Select Y Max Position")
+            pos1 = Request.position(tStart, "Select First Corner (Min X/Y)")
+            pos2 = Request.position(tStart, "Select Opposite Corner (Max X/Y)")
 
-            if not (xMinPos and xMaxPos and yMinPos and yMaxPos) then
+            if not (pos1 and pos2) then
                 dialogNotify("Invalid input. Please select valid positions.")
                 return false
             end
             return true
         end
 
-        if not (xMinPos and xMaxPos and yMinPos and yMaxPos) then
+        if not (pos1 and pos2) then
             if not requestPositions() then return end
         else
             local confirmUsePrevious = DialogInput.withTitle("WARNING").requestInput({
@@ -142,6 +172,11 @@ MacroNew(
                 if not requestPositions() then return end
             end
         end
+
+        local xMin = math.min(pos1.x, pos2.x)
+        local xMax = math.max(pos1.x, pos2.x)
+        local yMin = math.min(pos1.y, pos2.y)
+        local yMax = math.max(pos1.y, pos2.y)
 
         local tEnd = Request.time("Select end time")
         coroutine.yield()
@@ -168,7 +203,7 @@ MacroNew(
                 .textField(FieldConstraint.create().float()),
             DialogField.create("factorx")
                 .setLabel("Xpos intensity")
-                .setTooltip("How long will the arc extend along the X-axis?")
+                .setTooltip("How much will the arc shift horizontally? (Left = Negative, Right = Positive)")
                 .defaultTo(defaultX)
                 .textField(FieldConstraint.create().float()),
             DialogField.create("endpos")
@@ -180,7 +215,10 @@ MacroNew(
         local dialogRequest = DialogInput.withTitle("Arc Rain").requestInput(dialogFields)
         coroutine.yield()
 
-        local lmulVal, intensityVal = tonumber(dialogRequest.result["lmul"]), tonumber(dialogRequest.result["intensity"])
+        local lmulVal = tonumber(dialogRequest.result["lmul"])
+        local intensityVal = tonumber(dialogRequest.result["intensity"])
+        local factoryVal = tonumber(dialogRequest.result["factory"])
+        local factorxVal = tonumber(dialogRequest.result["factorx"])
         local endDirection = dialogRequest.result["endpos"]
 
         if not (lmulVal and intensityVal) then
@@ -190,23 +228,27 @@ MacroNew(
 
         defaultLength, defaultIntensity = dialogRequest.result["lmul"], dialogRequest.result["intensity"]
 
-        local minPos, maxPos = xy(xMinPos.x, yMinPos.y), xy(xMaxPos.x, yMaxPos.y)
         local rainTime = Context.beatLengthAt(tStart, Context.currentTimingGroup) / Context.beatlineDensity
         local rainLength = rainTime * lmulVal
 
         for timing = tStart, tEnd - rainTime, rainTime do
             for i = 1, intensityVal do
-                local position = xy(math.randomf(minPos.x, maxPos.x), math.randomf(minPos.y, maxPos.y))
+                local position = xy(math.randomf(xMin, xMax), math.randomf(yMin, yMax))
 
-                local randY = math.randomf(-1, 1) * tonumber(dialogRequest.result["factory"])
-                local randX = math.randomf(0, 0.2)
+                local randY = math.randomf(-1, 1) * factoryVal
+                
+                local shiftX = 0
+                local magnitudeX = math.abs(factorxVal)
+
                 if endDirection == "Left [<--]" then
-                    randX = -randX
+                    shiftX = -magnitudeX
                 elseif endDirection == "Right [-->]" then
-                    randX = randX
+                    shiftX = magnitudeX
+                elseif endDirection == "Both" then
+                    shiftX = math.randomf(-magnitudeX, magnitudeX)
                 end
 
-                local endPosition = position + xy(randX * tonumber(dialogRequest.result["factorx"]), randY)
+                local endPosition = position + xy(shiftX, randY)
                 local arcEvent = Event.arc(timing, position, timing + rainLength, endPosition, true, 0, "s", Context.currentTimingGroup)
                 cmd.add(arcEvent.save())
             end
@@ -214,12 +256,19 @@ MacroNew(
     end
 )
 
+--[[--------------------------------------------------------------------]]--
+
+-----------------------------
+--- /// TIMING FOLDER /// ---
+-----------------------------
 FolderNew("floony.effect", "floony.timing", "e8b5", "[Timing]")
 
+-- // GRADUAL TIMING (my personal favorite) // --
+    -- / Defaults
 local division = nil
-local startBpm = Persistent.getString("floony.gradual.startBpm", nil)
-local endBpm = Persistent.getString("floony.gradual.endBpm", nil)
-
+local startBpm = nil
+local endBpm = nil
+    -- / Macro
 MacroNew(
     "floony.timing", "gradual", 
     "Gradual", "e6df",
@@ -276,10 +325,6 @@ MacroNew(
         endBpm = dialogRequest.result["endBpm"]
         local division = tonumber(dialogRequest.result["division"])
 
-        Persistent.setString("floony.gradual.startBpm", startBpm)
-        Persistent.setString("floony.gradual.endBpm", endBpm)
-        Persistent.save()
-
         local easingFunctions = {
             l = function(x) return x end,
             qi = function(x) return x * x end,
@@ -313,9 +358,12 @@ MacroNew(
     end
 )
 
+-- // BOUNCE TIMING // --
+    -- / Defaults
 local division = nil
 local initialBpm = nil
 local midBpm = nil
+    -- / Macro
 MacroNew(
     "floony.timing", "floony.bouncetiming", 
     "Bounce", "e7d0",
@@ -410,6 +458,60 @@ MacroNew(
     end
 )
 
+-- // GLITCH // --
+    -- / Defaults
+local segments = Context.beatlineDensity * 4
+local glitchbpm = nil
+local rangebpm = nil
+    -- / Macro (New methods)
+MacroNew(
+    "floony.timing", "glitch", 
+    "Glitch", "ec1c",
+    function(cmd)
+        local tStart, tEnd = Request.timeRange()
+        local currentBpm = Context.bpmAt(tStart, Context.currentTimingGroup)
+
+        local dialogFields = {
+            DialogField.create("segments")
+                .setLabel("Segments")
+                .setTooltip("How many timings should be created?")
+                .defaultTo(segments)
+                .textField(FieldConstraint.create().integer()),
+            DialogField.create("glitchbpm")
+                .setLabel("Initial BPM")
+                .setTooltip("The Initial BPM of the glitch")
+                .defaultTo(glitchbpm or currentBpm)
+                .textField(FieldConstraint.create().any()),
+            DialogField.create("rangebpm")
+                .setLabel("BPM Range")
+                .setTooltip("The Range of the glitch")
+                .defaultTo(rangebpm or currentBpm * (8^2))
+                .textField(FieldConstraint.create().any()),
+            DialogField.create("tip")
+                .description("<size=65%>Tip: A larger value is recommended.</size>")
+        }
+
+        local dialogRequest = DialogInput.withTitle("Glitch Timing").requestInput(dialogFields)
+        coroutine.yield()
+
+        segments = tonumber(dialogRequest.result["segments"])
+        glitchbpm = evaluateMathExpression(dialogRequest.result["glitchbpm"])
+        rangebpm = evaluateMathExpression(dialogRequest.result["rangebpm"])
+
+        local step = (tEnd - tStart) / segments
+
+        for index = 0, segments - 1 do
+            local timing = math.floor(tStart + step * index)
+            local bpm = (index % 2 == 0) and rangebpm or -rangebpm
+            cmd.add(Event.timing(timing, bpm, 4.00, Context.currentTimingGroup).save())
+            cmd.add(Event.timing(timing + 1, glitchbpm, 4.00, Context.currentTimingGroup).save())
+        end
+
+        cmd.add(Event.timing(tEnd, currentBpm, 4.00, Context.currentTimingGroup).save())
+    end
+)
+
+--[[ // Old methods
 MacroNew(
     "floony.timing", "glitch", 
     "Glitch", "ec1c",
@@ -462,8 +564,37 @@ MacroNew(
         cmd.add(Event.timing(tEnd, currentBpm, Context.beatlineDensity, Context.currentTimingGroup).save())
     end
 )
+--]]
 
 
+-- // PAUSE // --
+    -- / STOP BPM SETTINGS
+local sbpm = 0.01
+function StopBPMSetting(self)
+    
+    local settingTitle = "Pause Hold Setting / Base BPM: " .. tostring(Context.baseBpm)
+    local dialogRequest = DialogInput.withTitle(settingTitle).requestInput(
+        {
+            DialogField.create("stopbpm")
+                .setLabel("Set Stop BPM")
+                .setTooltip("If left blank, 0.01 will be used.")
+                .defaultTo(sbpm)
+                .textField(FieldConstraint.create().any())
+        }
+    )
+    coroutine.yield()
+
+    local input = dialogRequest.result["stopbpm"]
+    if input == "" or input == nil then
+        sbpm = 0.01
+    else
+        sbpm = evaluateMathExpression(input)
+    end
+    
+    notify("The stop BPM value has been successfully updated to " .. sbpm)
+end
+
+    -- / FUNCTION
 ---@param cmd LuaChartCommand
 function pauseHold(bpmMul, cmd)
     local hold =
@@ -472,11 +603,11 @@ function pauseHold(bpmMul, cmd)
     local tg, timing, endTiming = hold.timingGroup, hold.timing, hold.endTiming
     local bpm, ebpm = Context.bpmAt(timing, tg), Context.bpmAt(endTiming, tg)
 
-    cmd.add(Event.timing(timing, 0.01, 999, tg).save())
+    cmd.add(Event.timing(timing, sbpm, 999, tg).save())
     cmd.add(Event.timing(endTiming - 1, ebpm * bpmMul, Context.divisorAt(timing, tg), tg).save())
     cmd.add(hold.delete())
 end
-
+    -- / Folder & Macro & Setting
 FolderNew("floony.timing", "floony.pauseHold", "e034", "[Pause]")
 
 local pauseHoldPresets = {
@@ -496,10 +627,15 @@ for _, preset in ipairs(pauseHoldPresets) do
     )
 end
 
+MacroNewNOCMD("floony.pauseHold", "floony.pauseHoldSet", "Set stop BPM", "e9e4", StopBPMSetting)
+
+-- // SUDDEN // --
+    -- / Folder
 FolderNew("floony.timing", "floony.suddentiming", "ea0b", "[Sudden]")
+    -- / Macro
 MacroNew(
     "floony.suddentiming", "suddenbefore", 
-    "Timing - 1 (Before)", "e5d9",
+    "Timing - 1 (Hidden)", "e5d9",
     function(cmd)
         local request = TrackInput.requestTiming()
         coroutine.yield()
@@ -513,7 +649,7 @@ MacroNew(
 
 MacroNew(
     "floony.suddentiming", "suddenafter",
-    "Timing + 1 (After)", "e5da",
+    "Timing + 1 (Visible)", "e5da",
     function(cmd)
         local request = TrackInput.requestTiming()
         coroutine.yield()
@@ -525,9 +661,11 @@ MacroNew(
     end
 )
 
+-- // TELEPORT // --
+    -- / Defaults
 local multiplier = Persistent.getString("floony.timingteleport.multiplier", 1)
 local startPoint = Persistent.getString("floony.timingteleport.startPoint", "end")
-
+    -- / Macro
 MacroNew(
     "floony.timing", "timingteleport",
     "Teleport", "ebaa",
@@ -541,15 +679,17 @@ MacroNew(
         end
 
         local dialogFields = {
+            DialogField.create("Instruction")
+                .description("Create a 'teleport' effect on long notes (arc or hold) by suddenly changing the timing based on selected long notes."),
             DialogField.create("multiplier")
                 .setLabel("Multiplier")
                 .defaultTo(multiplier)
                 .setTooltip("How strong the teleportation is? (in Beatline)")
                 .textField(FieldConstraint.create().float()),
             DialogField.create("startpoint")
-                .setLabel("Starting Point")
+                .setLabel("Teleport From")
                 .defaultTo(startPoint)
-                .setTooltip("Should the teleportation begin at the <u>start</u> or <u>end</u>") -- I would use Dropdown if the defaultTo are working
+                .setTooltip('Should the teleportation begin at the "<u>start</u>" or "<u>end</u>"\n<size=65%>It is based on Hold Timing or End Timing</size>') -- I could use Dropdown if the defaultTo are working.
                 .textField(FieldConstraint.create().any())
         }
 
@@ -564,18 +704,28 @@ MacroNew(
         Persistent.save()
         
         local lastNoteIndex = #longNotes
+        local tolerance = 17 -- in milliseconds
 
         for i, hold in ipairs(longNotes) do
-            local tg = hold.timingGroup
+            local tg = Context.currentTimingGroup
             local bpm = Context.bpmAt(hold.timing, tg)
             local ebpm = Context.bpmAt(hold.endTiming, tg)
             local div = Context.divisorAt(hold.timing, tg)
-            local beatline = 60000 / (bpm * Context.beatlineDensity) -- thx fragalis (James, who barely knows math)
+            local beatline = 60000 / (bpm * Context.beatlineDensity)
+
+            -- Adjust for overshoot
+            if i < lastNoteIndex then
+                local nextHold = longNotes[i + 1]
+                if hold.endTiming > nextHold.timing - tolerance then
+                    hold.endTiming = nextHold.timing
+                end
+            end
 
             if startPoint == "end" then
                 cmd.add(Event.timing(hold.timing, 0.01, 999, tg).save())
                 cmd.add(Event.timing(hold.endTiming - 1, bpm * (beatline * multiplier), 999, tg).save())
-                if i == lastNoteIndex or (i < lastNoteIndex and hold.endTiming ~= longNotes[i + 1].timing) then
+
+                if i == lastNoteIndex or (i < lastNoteIndex and hold.endTiming + tolerance < longNotes[i + 1].timing) then
                     cmd.add(Event.timing(hold.endTiming, ebpm, div, tg).save())
                 end
             elseif startPoint == "start" then

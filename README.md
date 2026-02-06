@@ -6,7 +6,7 @@ Probably the only macro that you'll need to make charting in [ArcCreate](https:/
 
 ## Installation
 0. Download the file either through [Release](https://github.com/JamesAT/ArcCreate-Floonys-Macro/releases) or `Code > Download ZIP`
-1. Unzip the folder you just downloaded.
+1. Unzip the file you just downloaded.
 2. Go to the **ArcCreate** folder and find the one named `Macros`. (If it’s not there, just create a new folder and name it `Macros`).
 3. Drop the files you unzipped right into that folder.
 

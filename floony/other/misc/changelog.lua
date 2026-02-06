@@ -41,15 +41,15 @@ end
 
 -- Tricks for description bugs (Text cut off), use spaces to stretch out the description, lmao.
 addChangelog(
-    "6.9.8", "???, 2025", 
+    "6.9.8", "February 6, 2026", 
     [[
 #> Adjustment / Improvement# <size=90%>
-- `Random Selection` is now select based on TG selected.
-- nothing much, just changed the internal coding stuff.
+- `Random Selection` is now selected based on the TG selected.
+- Nothing much, just changed the internal coding stuff.
 - Modified `Arc Rain` to use a 2-point selection. I realized that picking two diagonal points covers the same X/Y range as picking four separate bounds, so I've simplified the workflow.
 #> Addition# <size=90%>
-- Added `Range Select Area` under Selection category, although it only select arcs (for now)
-- Added `Notes Trail` under Special Category (wow there are so many special macro huh), to replicate that motion blur effect on notes (refer to 0thElement Hecatoncheir)
+- Added `Range Select Area` under the Selection category, although it only selects arcs (for now)
+- Added `Notes Trail` under Special Category (wow, there are so many special macros, huh), to replicate that motion blur effect on notes (refer to 0thElement Hecatoncheir)
 </size>
 
 

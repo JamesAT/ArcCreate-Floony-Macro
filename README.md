@@ -1,6 +1,6 @@
 # Floony's (ultimate?) macro
 Initially maintained by Floofer++, the macro is now being enhanced
-and currently maintained by James aka. Exiony (me).
+and currently maintained by James aka. Exiony.
 
 Probably the only macro that you'll need to make charting in [ArcCreate](https://github.com/Arcthesia/ArcCreate) easy!
 
@@ -12,10 +12,14 @@ Probably the only macro that you'll need to make charting in [ArcCreate](https:/
 
 <sub>Alternatively, you can open the zip, and drag it straight to the macros</sub>
 
-## Features Highlight:
-- Gradual Timing
-- Free ArcTap (1ms trace)
-- Arc Segmentation
-- Arc Rain
-- Chart Info
-- and more!
+## Highlight Features
+- **Arc Segmentation** - Create complex arc patterns with multiple generation/split methods (Zig-Zag, Ran<sub>(thunder-like pattern)</sub>, Stair, Rice, etc)
+- **Arc Rain** - Generate rainfall-like traces with full control over intensity, spawn area, duration, etc
+- **Gradual Timing** - Self Explanatory
+- **Snap Arc** - Snap arc/trace (either start or end) position onto the selected arc
+- **Notes to Trace** - Transform various note types (floor, hold, arc, arctap) into traces/void
+- **Camera Effects** - Add numerous camera events with blank, repeat, flick, bounce functionalities
+- **Note Trails** - Create trailing visual effects by generating timing groups with gradually dissapearing note sequences
+- **Auto-Quantize** - Automatically quantize selected notes to beatline *(unsure if this is fully working)*
+- **Built-in Manual & Help** *(WIP)*
+- **And so much more!**

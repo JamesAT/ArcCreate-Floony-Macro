@@ -1,10 +1,10 @@
-# Floony's (ultimate?) macro
+# ArcCreate (ultimate?) macro
 Initially maintained by Floofer++, the macro is now being enhanced
 and currently maintained by James aka. Exiony.
 
-Probably the only macro that you'll need to make charting in [ArcCreate](https://github.com/Arcthesia/ArcCreate) easy!
+Floony[^1] macro is probably the only macro that you'll need to make charting in [ArcCreate](https://github.com/Arcthesia/ArcCreate) easy!
 
-## Installation
+## Installation:
 0. Download the file either through [Releases](https://github.com/JamesAT/ArcCreate-Floonys-Macro/releases) or `Code > Download ZIP (recommended)`
 1. Unzip the file you just downloaded.
 2. Go to the **ArcCreate** folder and find the one named `Macros`. (If it’s not there, just create a new folder and name it `Macros`).
@@ -12,7 +12,7 @@ Probably the only macro that you'll need to make charting in [ArcCreate](https:/
 
 <sub>Alternatively, you can open the zip, and drag it straight to the macros</sub>
 
-## Highlight Features
+## Highlight Features:
 - **Arc Segmentation** - Create complex arc patterns with multiple generation/split methods (Zig-Zag, Ran<sub>(thunder-like pattern)</sub>, Stair, Rice, etc)
 - **Arc Rain** - Generate rainfall-like traces with full control over intensity, spawn area, duration, etc
 - **Gradual Timing** - Self Explanatory
@@ -23,3 +23,5 @@ Probably the only macro that you'll need to make charting in [ArcCreate](https:/
 - **Auto-Quantize** - Automatically quantize selected notes to beatline *(unsure if this is fully working)*
 - **Built-in Manual & Help** *(WIP)*
 - **And so much more!**
+
+[^1]: Floony is a combination name of (Floo)fer++ and Exio(ny).

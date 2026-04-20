@@ -21,6 +21,7 @@ Floony[^1] macro is probably the only macro that you'll need to make charting in
 - **Camera Effects** - Add numerous camera events with blank, repeat, flick, bounce functionalities
 - **Note Trails** - Create trailing visual effects by generating timing groups with gradually dissapearing note sequences
 - **Auto-Quantize** - Automatically quantize selected notes to beatline *(unsure if this is fully working)*
+- **Density / Progress** - Track chart’s progress, visualize note density with a heatmap, and calculate notes per second.
 - **Built-in Manual & Help** *(WIP)*
 - **And so much more!**
 

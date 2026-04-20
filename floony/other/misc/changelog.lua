@@ -41,18 +41,37 @@ end
 
 -- Tricks for description bugs (Text cut off), use spaces to stretch out the description, lmao.
 addChangelog(
+    "6.9.9", "April 20, 2026", 
+    [[
+#> Adjustment / Improvement# <size=90%>
+- Reorganized **macro/categories** to fit their purposes
+- Changed the "Flick" to "Flash" analogies.
+- Refactored `Density / Progress` logic for better accuracy (hopefully it does), and added a new Notes Per Second (NPS) tracker cuz why not.
+</size>
+#> Bug Fix# <size=90%>
+- In `Stream Placement`, fixed a bug where arc colors failed to alternate correctly when mixing Floor Notes and ArcTaps.
+</size>
+#> Removal# <size=90%>
+- Deprecated `Manual` because GitHub exists now, check that instead
+</size>
+
+
+
+]]
+)
+
+addChangelog(
     "6.9.8", "February 6, 2026", 
     [[
 #> Adjustment / Improvement# <size=90%>
 - `Random Selection` is now selected based on the TG selected.
 - Nothing much, just changed the internal coding stuff.
 - Modified `Arc Rain` to use a 2-point selection. I realized that picking two diagonal points covers the same X/Y range as picking four separate bounds, so I've simplified the workflow.
+</size>
 #> Addition# <size=90%>
 - Added `Range Select Area` under the Selection category, although it only selects arcs (for now)
 - Added `Notes Trail` under Special Category (wow, there are so many special macros, huh), to replicate that motion blur effect on notes (refer to 0thElement Hecatoncheir)
 </size>
-
-
 
 ]]
 )

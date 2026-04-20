@@ -10,17 +10,16 @@ local floonyModules = {}
 floonyModules.main = {
     "floony.main.segmentation",
     "floony.main.effect",
-    "floony.main.modification",
     "floony.main.create",
+    "floony.main.modification",
+    "floony.main.special",
 }
 
 -- Other related modules
 floonyModules.other = {
     "floony.other.selection",
-    "floony.other.special",
     "floony.other.fun",
     "floony.other.information",
-    "floony.other.misc.manual",
     "floony.other.misc.changelog",
 }
 

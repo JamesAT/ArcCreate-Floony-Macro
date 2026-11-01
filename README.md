@@ -15,7 +15,7 @@ Then pick **one** of these ways:
    - `I` installs the macros
    - `T` only tests (checks everything, changes nothing)
    - `C` cancels
-4. Open ArcCreate (but if you have ArcCreate opened already, click **Reload macro**).
+4. Open ArcCreate (but if you have ArcCreate opened already, click **Reload macro scripts**).
 
 To update later, just run it again. Your previous version is saved in a `floony_backup` folder next to `Macros`, so you can go back if something is wrong.
 
